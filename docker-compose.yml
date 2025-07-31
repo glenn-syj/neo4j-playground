@@ -1,0 +1,26 @@
+services:
+  neo4j:
+    image: neo4j:5.16-community # Using a specific stable version for consistency
+    container_name: neo4j_community
+    ports:
+      - "7474:7474" # Neo4j Browser / HTTP API
+      - "7687:7687" # Bolt protocol
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+      - neo4j_plugins:/plugins
+    environment:
+      # Replace 'password' with a strong password for production
+      - NEO4J_AUTH=neo4j/password
+      # Uncomment the following lines to configure memory settings
+      # - NEO4J_HEAP_MEMORY=512M
+      # - NEO4J_SERVER_MEMORY=1G
+    restart: unless-stopped
+
+volumes:
+  neo4j_data:
+    driver: local
+  neo4j_logs:
+    driver: local
+  neo4j_plugins:
+    driver: local
