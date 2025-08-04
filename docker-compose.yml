@@ -11,7 +11,7 @@ services:
       - neo4j_plugins:/plugins
     environment:
       # Replace 'password' with a strong password for production
-      - NEO4J_AUTH=neo4j/password
+      - NEO4J_AUTH=neo4j/glennsyjneo
       # Uncomment the following lines to configure memory settings
       # - NEO4J_HEAP_MEMORY=512M
       # - NEO4J_SERVER_MEMORY=1G
