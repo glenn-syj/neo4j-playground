@@ -121,11 +121,10 @@ def generate_sql_with_llm(nl_query: str, schema_context: str, graph_context: str
     """
     prompt_template = ChatPromptTemplate.from_messages([
         ("system", "You are a helpful assistant that translates natural language questions into PostgreSQL SQL queries.\n"+
-                   "Use the provided database schema context and graph relationships to generate accurate SQL. "+
+                   "**CRITICAL**: You MUST only use the information present in the provided Database Schema Context and Graph Relationships.\n"+
                    "For any aggregation on numeric columns (e.g., AVG, SUM, COUNT), always use NULLIF(column_name, 'NaN'::numeric) to exclude NaN values and ensure only valid numbers are processed.\n"+
-                   "Only output the SQL query, no other text or explanations. Do not wrap the SQL query in markdown code blocks."+
-                   "When creating the SQL query, you need to return the proper name of the record, too."
-                   "If the query is not possible, return 'No relevant data found.'"),
+                   "If the natural language query asks for data or calculations that are NOT possible with the provided schema and relationships, or if a required column does not exist in the schema, you MUST respond ONLY with the exact phrase: 'Question not relevant.'\n"+
+                   "Only output the SQL query, no other text or explanations. Do not wrap the SQL query in markdown code blocks."),
         ("user", "Natural Language Query: {nl_query}\n\n"+
                  "Database Schema Context (from ChromaDB):\n{schema_context}\n\n"+
                  "Graph Relationships (from Neo4j):\n{graph_context}\n\n"+
@@ -234,5 +233,8 @@ if __name__ == "__main__":
     # (Requires proper handling of NaN/NULL ratings in DB as discussed previously)
     # answer_question_with_graph_rag("Beauty & Hygiene 카테고리 내에서 각 서브 카테고리별 평균 평점은 얼마인가요?")
 
-    answer_question_with_graph_rag("평점이 3.5 이상인 제품 중에서 20% 이상 할인하는 제품들이 속하는 카테고리가 어디에 속하는지 각각의 비율을 알려주세요.")
+    # answer_question_with_graph_rag("평점이 3.5 이상인 제품 중에서 20% 이상 할인하는 제품들이 속하는 카테고리가 어디에 속하는지 각각의 비율을 알려주세요.")
+
+    # Example 3: Query cannot be answered
+    answer_question_with_graph_rag("각 카테고리 별로 소비자의 구매 수가 가장 높은 서브 카테고리는 무엇인가요?")
 
