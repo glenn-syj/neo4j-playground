@@ -58,13 +58,20 @@ def check_sql_query_accuracy(json_file_path: str):
 
             try:
                 cur.execute(sql_query)
-                # If it's a SELECT query, try to fetch some rows to confirm it works
-                if sql_query.strip().upper().startswith("SELECT"):
+                # If it's a SELECT query or starts with WITH, try to fetch some rows to confirm it works
+                if sql_query.strip().upper().startswith(("SELECT", "WITH")):
                     try:
-                        _ = cur.fetchone() # Just try to fetch one to see if it errors
-                        print("Result: SUCCESS (SELECT query executed and fetched data).")
+                        results = cur.fetchall()
+                        if results:
+                            print(f"Result: SUCCESS (SELECT query executed). First 5 rows of results:")
+                            for row in results[:5]: # Print first 5 rows for brevity
+                                print(f"  {row}")
+                            if len(results) > 5:
+                                print(f"  ... (total {len(results)} rows)")
+                        else:
+                            print("Result: SUCCESS (SELECT query executed, but no rows returned).")
                     except psycopg2.ProgrammingError as e:
-                        print(f"Result: SUCCESS (Non-data returning query or data not fetched: {e})")
+                        print(f"Result: SUCCESS (Non-data returning query or data not fetched, or other error: {e})")
                 else:
                     print("Result: SUCCESS (Non-SELECT query executed).")
             except psycopg2.Error as e:
