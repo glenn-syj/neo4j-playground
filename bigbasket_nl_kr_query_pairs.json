@@ -89,7 +89,7 @@
   },
   {
     "NL": "Beauty & Hygiene 카테고리 내에서 각 서브 카테고리별 평균 평점은 얼마인가요?",
-    "SQL": "SELECT sub_category, AVG(rating) FROM bigbasket_products WHERE category = 'Beauty & Hygiene' GROUP BY sub_category;"
+    "SQL": "SELECT sub_category, AVG(NULLIF(rating, 'NaN'::numeric)) FROM bigbasket_products WHERE category = 'Beauty & Hygiene' GROUP BY sub_category HAVING COUNT(NULLIF(rating, 'NaN'::numeric)) > 0;"
   },
   {
     "NL": "가장 많은 제품을 보유한 상위 3개 카테고리와 해당 카테고리 내 각 브랜드의 제품 수를 알려주세요.",
@@ -98,5 +98,17 @@
   {
     "NL": "판매 가격이 500을 초과하는 제품이 있는 각 카테고리와 해당 카테고리의 총 제품 수를 알려주세요.",
     "SQL": "SELECT category, COUNT(*) FROM bigbasket_products WHERE sale_price > 500 GROUP BY category HAVING COUNT(*) > 0;"
+  },
+  {
+    "NL": "각 카테고리 및 서브 카테고리 중에서 평점이 제일 높은 카테고리와 서브 카테고리를 알려주세요. 평점도 함께 알려주세요.",
+    "SQL": "SELECT category, sub_category, AVG(NULLIF(rating, 'NaN'::numeric)) AS average_rating FROM bigbasket_products GROUP BY category, sub_category HAVING COUNT(NULLIF(rating, 'NaN'::numeric)) > 0 ORDER BY AVG(NULLIF(rating, 'NaN'::numeric)) DESC LIMIT 1;"
+  },
+  {
+    "NL": "카테고리 중에서 가장 많은 평점을 가진 제품이 있는 카테고리는 무엇인가요?",
+    "SQL": "SELECT category, COUNT(NULLIF(rating, 'NaN'::numeric)) AS rated_product_count FROM bigbasket_products GROUP BY category ORDER BY rated_product_count DESC LIMIT 1;"
+  },
+  {
+    "NL": "평균 평점이 가장 높은 카테고리에 속하는 제품의 개수가 전체 카테고리에서 차지하는 비중을 알려주세요.",
+    "SQL": "WITH TopRatedCategory AS (\n  SELECT category, AVG(NULLIF(rating, 'NaN'::numeric)) AS avg_rating\n  FROM bigbasket_products\n  GROUP BY category\n  HAVING COUNT(NULLIF(rating, 'NaN'::numeric)) > 0\n  ORDER BY AVG(NULLIF(rating, 'NaN'::numeric)) DESC\n  LIMIT 1\n),\nProductsInTopCategory AS (\n  SELECT COUNT(*) AS count_top_cat\n  FROM bigbasket_products\n  WHERE category = (SELECT category FROM TopRatedCategory)\n),\nTotalProductsCount AS (\n  SELECT COUNT(*) AS total_count\n  FROM bigbasket_products\n)\nSELECT\n  (SELECT category FROM TopRatedCategory) AS top_rated_category,\n  (SELECT avg_rating FROM TopRatedCategory) AS top_rated_category_avg_rating,\n  (SELECT count_top_cat FROM ProductsInTopCategory) * 1.0 / (SELECT total_count FROM TotalProductsCount) AS proportion_of_products_in_top_rated_category;"
   }
 ]
