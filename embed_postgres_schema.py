@@ -1,7 +1,7 @@
 import os
 import psycopg2
 from dotenv import load_dotenv
-from typing import Dict, Any
+from typing import List, Any, Dict
 
 from langchain_community.vectorstores import Chroma
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
@@ -12,12 +12,11 @@ load_dotenv()
 
 # Constants for embedding
 GEMINI_EMBEDDING_MODEL = "models/embedding-001"
-EMBEDDING_DIMENSION = 768  # As identified from the web search for Gemini embedding-001
 
-def extract_table_info_as_string(table_name: str, sample_limit: int = 5) -> str:
+def prepare_schema_documents(table_name: str, sample_limit: int = 5) -> List[Document]:
     """
-    Extracts schema and sample data for a given table and returns it as a formatted string.
-    Reuses the logic from extract_postgres_schema.py.
+    Extracts schema and sample data for a given table and prepares it as a list of Document objects,
+    with each column as a separate document.
     """
     db_name = os.getenv("POSTGRES_DB")
     db_user = os.getenv("POSTGRES_USER")
@@ -26,7 +25,7 @@ def extract_table_info_as_string(table_name: str, sample_limit: int = 5) -> str:
     db_port = os.getenv("POSTGRES_PORT", "5432")
 
     conn = None
-    schema_info = []
+    documents = []
     try:
         conn = psycopg2.connect(
             dbname=db_name,
@@ -37,9 +36,24 @@ def extract_table_info_as_string(table_name: str, sample_limit: int = 5) -> str:
         )
         cur = conn.cursor()
 
-        schema_info.append(f"--- Table: {table_name} ---")
+        # Get table comment (if available)
+        table_comment_query = f"""
+        SELECT
+            obj_description('{table_name}'::regclass, 'pg_class') AS table_comment;
+        """
+        cur.execute(table_comment_query)
+        table_comment = cur.fetchone()[0]
 
-        # 1. Get column names, data types, and comments
+        # Table-level document
+        table_content = f"Table: {table_name}"
+        if table_comment:
+            table_content += f"\nDescription: {table_comment}"
+        documents.append(Document(
+            page_content=table_content,
+            metadata={"source": "postgres_table_schema", "table_name": table_name, "type": "table_overview"}
+        ))
+
+        # Get column names, data types, and comments
         column_info_query = f"""
         SELECT
             c.column_name,
@@ -63,79 +77,76 @@ def extract_table_info_as_string(table_name: str, sample_limit: int = 5) -> str:
         columns_metadata = cur.fetchall()
 
         if not columns_metadata:
-            schema_info.append(f"Table '{table_name}' not found or has no columns.")
-            return "\n".join(schema_info)
+            print(f"Table '{table_name}' not found or has no columns.")
+            return []
 
         column_names = [col[0] for col in columns_metadata]
 
-        schema_info.append("\nColumn Details:")
-        for col_name, data_type, col_comment in columns_metadata:
-            comment_display = col_comment if col_comment else "(No comment)"
-            schema_info.append(f"  - {col_name} ({data_type}): {comment_display}")
-
-        # 2. Get sample data
-        schema_info.append(f"\nSample Data (first {sample_limit} rows):")
+        # Get sample data for all columns to distribute per column document
         sample_data_query = f"SELECT {', '.join(column_names)} FROM {table_name} LIMIT {sample_limit};"
         cur.execute(sample_data_query)
         sample_rows = cur.fetchall()
 
-        if not sample_rows:
-            schema_info.append("  No sample data available.")
-        else:
-            header = " | ".join(column_names)
-            schema_info.append(f"  {header}")
-            schema_info.append(f"  {'---' * len(column_names)}")
-            for row in sample_rows:
-                row_str = " | ".join(str(item) for item in row)
-                schema_info.append(f"  {row_str}")
+        # Create a document for each column
+        for i, (col_name, data_type, col_comment) in enumerate(columns_metadata):
+            col_doc_content = f"Table: {table_name}\nColumn: {col_name}\nData Type: {data_type}"
+            comment_display = col_comment if col_comment else "(No comment)"
+            col_doc_content += f"\nComment: {comment_display}"
+
+            # Add sample data for this specific column if available
+            column_sample_values = []
+            if sample_rows:
+                for row in sample_rows:
+                    if i < len(row):
+                        column_sample_values.append(str(row[i]))
+                if column_sample_values:
+                    col_doc_content += f"\nSample Values: {', '.join(column_sample_values[:5])}" # Limit to 5 samples
+
+            documents.append(Document(
+                page_content=col_doc_content,
+                metadata={"source": "postgres_column_schema", "table_name": table_name, "column_name": col_name, "type": "column_detail"}
+            ))
 
     except Exception as e:
-        schema_info.append(f"An error occurred during schema extraction: {e}")
+        print(f"An error occurred during schema extraction: {e}")
     finally:
         if conn:
             cur.close()
             conn.close()
-            schema_info.append("\nDatabase connection closed for extraction.")
-    return "\n".join(schema_info)
+            print("Database connection closed for extraction.")
+    return documents
 
-def embed_schema_to_chromadb(table_name: str, schema_string: str):
+def embed_schema_to_chromadb(table_name: str, documents: List[Document]):
     """
-    Embeds the extracted schema string into ChromaDB.
+    Embeds the extracted schema Document objects into ChromaDB.
     """
     try:
-        # Initialize GoogleGenerativeAIEmbeddings with the specified model
         google_api_key = os.getenv("GEMINI_API_KEY")
         if not google_api_key:
             raise ValueError("GEMINI_API_KEY environment variable not set.")
         embeddings = GoogleGenerativeAIEmbeddings(model=GEMINI_EMBEDDING_MODEL, google_api_key=google_api_key)
 
-        # Create a Document object from the schema string
-        # You might want to add more metadata here, e.g., source table, timestamp
-        document = Document(
-            page_content=schema_string,
-            metadata={"source": "postgres_schema_extraction", "table_name": table_name}
-        )
-
-        # Initialize ChromaDB with the embedding function
-        # ChromaDB will create a persistent collection if it doesn't exist
-        # The collection name could be dynamic, e.g., based on database name or purpose
-        # We'll use a simple "postgres_schemas" collection for this example
+        # Initialize ChromaDB with the embedding function and add documents
         vectordb = Chroma.from_documents(
-            documents=[document],
+            documents=documents,
             embedding=embeddings,
             persist_directory="./chroma_db", # Directory to store ChromaDB data
             collection_name="postgres_schemas" # Explicitly set collection name
         )
         vectordb.persist() # Save the database to disk
-        print(f"Successfully embedded schema for table '{table_name}' into ChromaDB.")
+        print(f"Successfully embedded {len(documents)} schema documents for table '{table_name}' into ChromaDB.")
     except Exception as e:
         print(f"An error occurred during embedding to ChromaDB: {e}")
 
 if __name__ == "__main__":
     target_table_name = "bigbasket_products" # Example table name
-    print(f"Extracting schema for table: {target_table_name}")
-    schema_content = extract_table_info_as_string(target_table_name, sample_limit=5)
-    print("\n--- Extracted Schema Content ---")
-    print(schema_content)
+    print(f"Preparing schema documents for table: {target_table_name}")
+    schema_documents = prepare_schema_documents(target_table_name, sample_limit=5)
+    print(f"\n--- Prepared {len(schema_documents)} Schema Documents ---")
+    for i, doc in enumerate(schema_documents):
+        print(f"Document {i+1} (Type: {doc.metadata.get('type', 'N/A')}):")
+        print(f"Content:\n{doc.page_content}")
+        print(f"Metadata: {doc.metadata}\n")
+
     print("\n--- Embedding Schema to ChromaDB ---")
-    embed_schema_to_chromadb(target_table_name, schema_content)
+    embed_schema_to_chromadb(target_table_name, schema_documents)
