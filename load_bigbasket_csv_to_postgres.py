@@ -50,6 +50,26 @@ def load_bigbasket_data_to_postgres():
         conn.commit()
         print(f"Table '{table_name}' created or already exists.")
 
+        # Add column descriptions
+        column_descriptions = {
+            "index": "Unique identifier for each row in the dataset.",
+            "product": "Name or title of the product, e.g., 'Tata Tea Premium', 'Kellogg\'s Corn Flakes'.",
+            "category": "Top-level category to which the product belongs, e.g., Beverages, Snacks, Fruits & Vegetables.",
+            "sub_category": "Subcategory under the main category, e.g., Tea, Chips, Apples.",
+            "brand": "Brand name of the product, e.g., Tata, Kellogg\'s, Haldiram.",
+            "sale_price": "The current selling price of the product on the website, including any discounts.",
+            "market_price": "The regular or market price of the product before any discounts.",
+            "type": "Type or classification of the product, e.g., Packaged, Fresh, Organic.",
+            "rating": "Average customer rating for the product on a scale from 0 to 5.",
+            "description": "Detailed textual description of the product or dataset entry."
+        }
+
+        for column, desc in column_descriptions.items():
+            comment_sql = f"COMMENT ON COLUMN {table_name}.{column} IS '{desc.replace("'", "''")}';"
+            cur.execute(comment_sql)
+            conn.commit()
+            print(f"Comment added to column {column}.")
+
         # Read CSV file
         csv_file_path = "dataset/bigbasket_products.csv"
         df = pd.read_csv(csv_file_path)
