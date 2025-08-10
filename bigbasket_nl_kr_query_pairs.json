@@ -1,0 +1,102 @@
+[
+  {
+    "NL": "모든 제품의 이름과 카테고리를 알려주세요.",
+    "SQL": "SELECT product, category FROM bigbasket_products;"
+  },
+  {
+    "NL": "판매 가격이 100보다 낮은 제품은 무엇인가요?",
+    "SQL": "SELECT product FROM bigbasket_products WHERE sale_price < 100;"
+  },
+  {
+    "NL": "Beverages 카테고리에 속하는 제품들의 브랜드와 판매 가격을 보여주세요.",
+    "SQL": "SELECT brand, sale_price FROM bigbasket_products WHERE category = 'Beverages';"
+  },
+  {
+    "NL": "평점이 4.5 이상인 제품들의 이름과 평점을 알려주세요.",
+    "SQL": "SELECT product, rating FROM bigbasket_products WHERE rating >= 4.5;"
+  },
+  {
+    "NL": "가장 비싼 제품 5가지의 이름과 판매 가격을 찾아주세요.",
+    "SQL": "SELECT product, sale_price FROM bigbasket_products ORDER BY sale_price DESC LIMIT 5;"
+  },
+  {
+    "NL": "브랜드가 'Nivea'인 제품들의 목록을 보여주세요.",
+    "SQL": "SELECT product, sub_category, sale_price FROM bigbasket_products WHERE brand = 'Nivea';"
+  },
+  {
+    "NL": "Hair Care 서브 카테고리의 제품들은 총 몇 개인가요?",
+    "SQL": "SELECT COUNT(*) FROM bigbasket_products WHERE sub_category = 'Hair Care';"
+  },
+  {
+    "NL": "카테고리별 평균 판매 가격을 계산해주세요.",
+    "SQL": "SELECT category, AVG(sale_price) FROM bigbasket_products GROUP BY category;"
+  },
+  {
+    "NL": "가장 높은 시장 가격을 가진 제품의 이름은 무엇인가요?",
+    "SQL": "SELECT product FROM bigbasket_products ORDER BY market_price DESC LIMIT 1;"
+  },
+  {
+    "NL": "설명에 'Garlic Oil'이 포함된 제품을 찾아주세요.",
+    "SQL": "SELECT product, description FROM bigbasket_products WHERE description ILIKE '%Garlic Oil%';"
+  },
+  {
+    "NL": "Sale_price와 market_price가 다른 모든 제품의 이름과 가격 정보를 알려주세요.",
+    "SQL": "SELECT product, sale_price, market_price FROM bigbasket_products WHERE sale_price != market_price;"
+  },
+  {
+    "NL": "rating이 가장 낮은 제품의 이름과 설명을 알려주세요.",
+    "SQL": "SELECT product, description FROM bigbasket_products ORDER BY rating ASC NULLS LAST LIMIT 1;"
+  },
+  {
+    "NL": "카테고리가 'Beauty & Hygiene'이면서 서브 카테고리가 'Bath & Hand Wash'인 제품들을 찾아주세요.",
+    "SQL": "SELECT product FROM bigbasket_products WHERE category = 'Beauty & Hygiene' AND sub_category = 'Bath & Hand Wash';"
+  },
+  {
+    "NL": "각 브랜드별 제품 수를 세어주세요.",
+    "SQL": "SELECT brand, COUNT(*) FROM bigbasket_products GROUP BY brand ORDER BY COUNT(*) DESC;"
+  },
+  {
+    "NL": "평점이 없는 (NULL) 제품이 몇 개 있나요?",
+    "SQL": "SELECT COUNT(*) FROM bigbasket_products WHERE rating IS NULL;"
+  },
+  {
+    "NL": "카테고리가 'Kitchen, Garden & Pets'인 제품 중 sale_price가 200 이상인 제품의 이름을 알려주세요.",
+    "SQL": "SELECT product FROM bigbasket_products WHERE category = 'Kitchen, Garden & Pets' AND sale_price >= 200;"
+  },
+  {
+    "NL": "제품 이름에 'Water Bottle'이 포함된 제품의 판매 가격과 브랜드를 알려주세요.",
+    "SQL": "SELECT product, sale_price, brand FROM bigbasket_products WHERE product ILIKE '%Water Bottle%';"
+  },
+  {
+    "NL": "가장 많은 제품이 속한 카테고리는 무엇인가요?",
+    "SQL": "SELECT category FROM bigbasket_products GROUP BY category ORDER BY COUNT(*) DESC LIMIT 1;"
+  },
+  {
+    "NL": "market_price와 sale_price의 차이가 가장 큰 제품의 이름은 무엇인가요?",
+    "SQL": "SELECT product FROM bigbasket_products ORDER BY (market_price - sale_price) DESC LIMIT 1;"
+  },
+  {
+    "NL": "설명에 'microwave safe'와 'dishwasher safe'가 모두 포함된 제품을 찾아주세요.",
+    "SQL": "SELECT product, description FROM bigbasket_products WHERE description ILIKE '%microwave safe%' AND description ILIKE '%dishwasher safe%';"
+  },
+  {
+    "NL": "각 카테고리별로 서브 카테고리 개수를 세고, 그 중 가장 많은 서브 카테고리를 가진 카테고리는 무엇인가요?",
+    "SQL": "SELECT category, COUNT(DISTINCT sub_category) AS sub_category_count FROM bigbasket_products GROUP BY category ORDER BY sub_category_count DESC LIMIT 1;"
+  },
+  {
+    "NL": "각 카테고리 및 서브 카테고리별로 제품의 총 개수를 알려주세요.",
+    "SQL": "SELECT category, sub_category, COUNT(*) FROM bigbasket_products GROUP BY category, sub_category ORDER BY category, sub_category;"
+  },
+  {
+    "NL": "Beauty & Hygiene 카테고리 내에서 각 서브 카테고리별 평균 평점은 얼마인가요?",
+    "SQL": "SELECT sub_category, AVG(rating) FROM bigbasket_products WHERE category = 'Beauty & Hygiene' GROUP BY sub_category;"
+  },
+  {
+    "NL": "가장 많은 제품을 보유한 상위 3개 카테고리와 해당 카테고리 내 각 브랜드의 제품 수를 알려주세요.",
+    "SQL": "SELECT t1.category, t1.brand, COUNT(t1.product) FROM bigbasket_products t1 JOIN (SELECT category, COUNT(*) AS product_count FROM bigbasket_products GROUP BY category ORDER BY product_count DESC LIMIT 3) t2 ON t1.category = t2.category GROUP BY t1.category, t1.brand ORDER BY t1.category, COUNT(t1.product) DESC;"
+  },
+  {
+    "NL": "판매 가격이 500을 초과하는 제품이 있는 각 카테고리와 해당 카테고리의 총 제품 수를 알려주세요.",
+    "SQL": "SELECT category, COUNT(*) FROM bigbasket_products WHERE sale_price > 500 GROUP BY category HAVING COUNT(*) > 0;"
+  }
+]
