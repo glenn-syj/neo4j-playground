@@ -91,3 +91,4 @@ zstandard==0.23.0
 pandas
 psycopg2-binary
 python-dotenv
+chromadb
